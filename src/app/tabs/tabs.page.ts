@@ -5,6 +5,7 @@ import {
   calculatorOutline,
   informationCircleOutline,
   timeOutline,
+  calendarOutline,
 } from 'ionicons/icons';
 
 @Component({
