@@ -3,6 +3,7 @@ import { IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
 import { CounterComponent } from '../components/counter/counter.component';
 import { SavedCounter } from '../models/saved-counter';
 import { CounterService } from '../services/counter.service';
+import { NotificationService } from '../services/notification.service';
 
 @Component({
   selector: 'app-tab1',
@@ -12,8 +13,10 @@ import { CounterService } from '../services/counter.service';
 })
 export class Tab1Page {
   private readonly counterService = inject(CounterService);
+  private readonly notifications = inject(NotificationService);
 
   async onSaved(counter: SavedCounter): Promise<void> {
     await this.counterService.add(counter);
+    await this.notifications.show(`Počítadlo „${counter.name}“ bylo uloženo.`);
   }
 }
