@@ -1,31 +1,74 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom, timeout } from 'rxjs';
+import { provideHttpClient } from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PublicHoliday } from '../models/public-holiday';
+import { HolidayApiService } from './holiday-api.service';
 
-@Injectable({
-  providedIn: 'root',
-})
-export class HolidayApiService {
-  private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'https://openholidaysapi.org/PublicHolidays';
+describe('HolidayApiService', () => {
+  let service: HolidayApiService;
+  let httpMock: HttpTestingController;
 
-  async getHolidays(validFrom: string, validTo: string): Promise<PublicHoliday[]> {
-    // firstValueFrom spustí požadavek a umožní počkat na odpověď pomocí await.
-    const holidays = await firstValueFrom(
-      // Typ popisuje očekávaný JSON, ale nekontroluje jeho obsah za běhu.
-      this.http.get<PublicHoliday[]>(this.apiUrl, {
-        // HttpClient připojí tyto parametry za otazník v URL.
-        params: {
-          countryIsoCode: 'CZ',
-          languageIsoCode: 'CS',
-          validFrom,
-          validTo,
-        },
-      }).pipe(timeout(10000)), // Po 10 sekundách bez odpovědi vyvolá chybu.
-    );
+  const apiUrl = 'https://openholidaysapi.org/PublicHolidays';
 
-    // U YYYY-MM-DD odpovídá pořadí řetězců pořadí dat: nejbližší bude první.
-    return holidays.sort((a, b) => a.startDate.localeCompare(b.startDate));
-  }
-}
+  const earlier: PublicHoliday = {
+    id: 'earlier',
+    startDate: '2026-12-24',
+    name: [{ language: 'CS', text: 'Štědrý den' }],
+  };
+
+  const later: PublicHoliday = {
+    id: 'later',
+    startDate: '2026-12-26',
+    name: [{ language: 'CS', text: 'Svátek vánoční' }],
+  };
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+
+    service = TestBed.inject(HolidayApiService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should request Czech holidays with the right parameters and sort them', async () => {
+    const promise = service.getHolidays('2026-01-01', '2026-12-31');
+
+    const request = httpMock.expectOne((req) => req.url === apiUrl);
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('countryIsoCode')).toBe('CZ');
+    expect(request.request.params.get('languageIsoCode')).toBe('CS');
+    expect(request.request.params.get('validFrom')).toBe('2026-01-01');
+    expect(request.request.params.get('validTo')).toBe('2026-12-31');
+
+    request.flush([later, earlier]);
+
+    expect(await promise).toEqual([earlier, later]);
+  });
+
+  it('should return an empty array for an empty response', async () => {
+    const promise = service.getHolidays('2026-02-02', '2026-02-02');
+
+    httpMock.expectOne((req) => req.url === apiUrl).flush([]);
+
+    expect(await promise).toEqual([]);
+  });
+
+  it('should reject when the request fails', async () => {
+    const promise = service.getHolidays('2026-01-01', '2026-12-31');
+
+    httpMock
+      .expectOne((req) => req.url === apiUrl)
+      .flush('Chyba', { status: 500, statusText: 'Server Error' });
+
+    await expect(promise).rejects.toBeTruthy();
+  });
+});
