@@ -56,6 +56,14 @@ export class Tab2Page implements OnInit {
     this.counterService.counters().reduce((sum, c) => sum + c.value, 0),
   );
 
+  /** Varianta B: minimum a maximum uložených hodnot. */
+  readonly minMax = computed(() => {
+    const values = this.counterService.counters().map((c) => c.value);
+    return values.length === 0
+      ? null
+      : { min: Math.min(...values), max: Math.max(...values) };
+  });
+
   /** Bonus: vyhledávání podle názvu a řazení. */
   readonly visibleCounters = computed(() => {
     const term = this.searchTerm().trim().toLocaleLowerCase('cs');

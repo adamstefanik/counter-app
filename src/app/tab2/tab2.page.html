@@ -16,6 +16,13 @@
     <div class="summary">
       <p>Počet záznamů: {{ counterService.counters().length }}</p>
       <p>Součet hodnot: <strong>{{ total() }}</strong></p>
+
+      @if (minMax(); as mm) {
+        <p>
+          Minimální hodnota: <strong>{{ mm.min }}</strong>,
+          maximální hodnota: <strong>{{ mm.max }}</strong>
+        </p>
+      }
     </div>
 
     <ion-searchbar
